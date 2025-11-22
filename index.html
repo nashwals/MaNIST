@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MaNIST - Klasifikasi Digit Tulisan Tangan</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts - Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Style CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header Section -->
+    <div class="header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <div class="logo">MaNIST :)</div>
+                </div>
+                <div class="col-md-9">
+                    <h1 class="main-title">Klasifikasi Digit Tulisan Tangan (CNN)</h1>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Section -->
+    <div class="container">
+        <div class="row">
+            <!-- Canvas Area (Left) -->
+            <div class="col-lg-4 mb-4">
+                <div class="canvas-container">
+                    <div class="canvas-instruction">
+                        Silahkan gambar digit dari 0 - 9. Jika sudah klik prediksi.
+                        <br><br>
+                        Hasil prediksi akan muncul di kotak sebelah kiri.
+                    </div>
+                    <canvas id="drawingCanvas" width="280" height="280"></canvas>
+                </div>
+            </div>
+
+            <!-- Button Area (Center) -->
+            <div class="col-lg-4 mb-4">
+                <div class="button-container">
+                    <button class="btn btn-custom btn-hapus" onclick="clearCanvas()">Hapus</button>
+                    <button class="btn btn-custom btn-prediksi" onclick="predictDigit()">Prediksi</button>
+                    <button class="btn btn-custom btn-visualisasi" id="btnVisualisasi" onclick="scrollToVisualization()" disabled>Visualisasi</button>
+                    
+                    <!-- Loading Spinner -->
+                    <div class="spinner-border text-primary spinner" role="status" id="loadingSpinner">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Panel (Right) -->
+            <div class="col-lg-4 mb-4">
+                <div class="result-panel">
+                    <div class="result-title">Hasil Prediksi</div>
+                    
+                    <div class="prediction-display">
+                        <div class="predicted-digit" id="predictedDigit">-</div>
+                        <div class="accuracy-text" id="accuracyText">Akurasi: -%</div>
+                    </div>
+
+                    <!-- Probability Bar Chart -->
+                    <div class="chart-container" id="chartContainer">
+                        <!-- Chart items akan di-generate oleh JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visualization Section (Placeholder) -->
+    <div class="container" id="visualizationSection">
+        <div class="visualization-section">
+            <h2 class="visualization-title">DISINI VISUALISASI PROSESNYA</h2>
+            <div class="visualization-placeholder">
+                <p>Section ini akan menampilkan proses CNN secara detail:</p>
+                <ul class="text-start" style="max-width: 600px; margin: 20px auto;">
+                    <li>Input Image Preprocessing (28x28 Grayscale)</li>
+                    <li>Convolutional Layer 1 + Feature Maps</li>
+                    <li>Max Pooling Layer 1</li>
+                    <li>Convolutional Layer 2 + Feature Maps</li>
+                    <li>Max Pooling Layer 2</li>
+                    <li>Flatten & Fully Connected Layers</li>
+                    <li>Softmax Output Probabilities</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // ===== Canvas Setup =====
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        // Setup canvas background
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // ===== Drawing Functions =====
+        
+        /**
+         * Start drawing when mouse is pressed
+         */
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+        }
+
+        /**
+         * Draw on canvas while mouse is moving
+         */
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 20;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(currentX, currentY);
+            ctx.stroke();
+
+            lastX = currentX;
+            lastY = currentY;
+        }
+
+        /**
+         * Stop drawing when mouse is released
+         */
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        // Event listeners for mouse drawing
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // Touch support for mobile devices
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const mouseEvent = new MouseEvent('mouseup', {});
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        /**
+         * Clear canvas and reset prediction results
+         */
+        function clearCanvas() {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Reset result display
+            document.getElementById('predictedDigit').textContent = '-';
+            document.getElementById('accuracyText').textContent = 'Akurasi: -%';
+            document.getElementById('chartContainer').innerHTML = '';
+            document.getElementById('btnVisualisasi').disabled = true;
+        }
+
+        /**
+         * Send canvas image to backend for prediction
+         */
+        async function predictDigit() {
+            // Get canvas image data
+            const imageData = canvas.toDataURL('image/png');
+            
+            // Show loading spinner
+            document.getElementById('loadingSpinner').style.display = 'block';
+            
+            try {
+                // TODO: Replace with actual Flask API endpoint
+                // const response = await fetch('/predict', {
+                //     method: 'POST',
+                //     headers: {
+                //         'Content-Type': 'application/json',
+                //     },
+                //     body: JSON.stringify({ image: imageData })
+                // });
+                // const data = await response.json();
+                
+                // DEMO: Simulate API response
+                await simulatePrediction();
+                
+            } catch (error) {
+                console.error('Prediction error:', error);
+                alert('Terjadi kesalahan saat melakukan prediksi. Silakan coba lagi.');
+            } finally {
+                // Hide loading spinner
+                document.getElementById('loadingSpinner').style.display = 'none';
+            }
+        }
+
+        /**
+         * Simulate prediction for demo purposes
+         * TODO: Replace with actual backend API call
+         */
+        async function simulatePrediction() {
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Generate random prediction for demo
+            const predictedDigit = Math.floor(Math.random() * 10);
+            const probabilities = generateRandomProbabilities(predictedDigit);
+            
+            displayPredictionResults(predictedDigit, probabilities);
+        }
+
+        /**
+         * Generate random probabilities for demo
+         * @param {number} topDigit - The predicted digit with highest probability
+         * @returns {Array} Array of probabilities for digits 0-9
+         */
+        function generateRandomProbabilities(topDigit) {
+            const probs = Array(10).fill(0).map(() => Math.random() * 0.15);
+            probs[topDigit] = 0.75 + Math.random() * 0.23;
+            
+            // Normalize to sum to 1.0
+            const sum = probs.reduce((a, b) => a + b, 0);
+            return probs.map(p => p / sum);
+        }
+
+        /**
+         * Display prediction results in the UI
+         * @param {number} digit - Predicted digit
+         * @param {Array} probabilities - Array of probabilities for each digit
+         */
+        function displayPredictionResults(digit, probabilities) {
+            // Display predicted digit
+            document.getElementById('predictedDigit').textContent = digit;
+            
+            // Display accuracy
+            const accuracy = (probabilities[digit] * 100).toFixed(1);
+            document.getElementById('accuracyText').textContent = `Akurasi: ${accuracy}%`;
+            
+            // Generate bar chart
+            generateBarChart(probabilities, digit);
+            
+            // Enable visualization button
+            document.getElementById('btnVisualisasi').disabled = false;
+        }
+
+        /**
+         * Generate probability bar chart
+         * @param {Array} probabilities - Array of probabilities for each digit
+         * @param {number} topDigit - The predicted digit
+         */
+        function generateBarChart(probabilities, topDigit) {
+            const chartContainer = document.getElementById('chartContainer');
+            chartContainer.innerHTML = '';
+            
+            probabilities.forEach((prob, index) => {
+                const percentage = (prob * 100).toFixed(1);
+                const isTop = index === topDigit;
+                
+                const chartItem = document.createElement('div');
+                chartItem.className = 'chart-item';
+                chartItem.innerHTML = `
+                    <span class="chart-label">${index}</span>
+                    <div class="chart-bar-container">
+                        <div class="chart-bar ${isTop ? 'top-prediction' : ''}" 
+                             style="width: ${percentage}%"></div>
+                    </div>
+                    <span class="chart-percentage">${percentage}%</span>
+                `;
+                
+                chartContainer.appendChild(chartItem);
+            });
+        }
+
+        /**
+         * Smooth scroll to visualization section
+         */
+        function scrollToVisualization() {
+            const section = document.getElementById('visualizationSection');
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    </script>
+</body>
+</html>

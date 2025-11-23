@@ -10,10 +10,8 @@ import tensorflow as tf
 app = Flask(__name__)
 CORS(app)
 
-# 1. Load Model
 model = tf.keras.models.load_model('model/mnist_cnn_model.h5')
 
-# Helper: Capture Model Summary as String
 def get_model_summary_str(model):
     stream = io.StringIO()
     model.summary(print_fn=lambda x: stream.write(x + '\n'))
@@ -21,7 +19,6 @@ def get_model_summary_str(model):
     stream.close()
     return summary_string
 
-# Simpan summary di awal agar tidak generate terus menerus
 MODEL_SUMMARY_TEXT = get_model_summary_str(model)
 
 def encode_image_array(img_array, resize_factor=4):
@@ -49,23 +46,19 @@ def predict():
         image_data = image_data.split(",")[1]
         image_bytes = base64.b64decode(image_data)
         
-        # --- Preprocessing ---
         img = Image.open(BytesIO(image_bytes)).convert('L')
         img = ImageOps.invert(img)
         img = img.resize((28, 28))
         img_array = np.array(img).astype('float32') / 255.0
         img_input = img_array.reshape(1, 28, 28, 1)
         
-        # --- Prediksi Akhir ---
         prediction = model.predict(img_input)
         predicted_digit = int(np.argmax(prediction))
         probabilities = prediction[0].tolist()
 
-        # --- "Bedah" Model untuk Log Detail ---
         viz_data = {}
-        logs = [] # Array untuk menyimpan log langkah-demi-langkah
+        logs = [] 
         
-        # 1. Log Input
         viz_data['input'] = encode_image_array(img_array, resize_factor=5)
         logs.append({
             "step": "Input Layer",
@@ -75,11 +68,9 @@ def predict():
 
         current_tensor = tf.convert_to_tensor(img_input)
 
-        # Loop Layer Manual
         for i, layer in enumerate(model.layers):
             input_shape_str = str(current_tensor.shape)
             
-            # Pass data
             current_tensor = layer(current_tensor)
             output_shape_str = str(current_tensor.shape)
             
@@ -92,7 +83,6 @@ def predict():
                 "params": layer.count_params()
             }
 
-            # Cek Visualisasi Feature Map
             layer_name = layer.name.lower()
             if 'conv' in layer_name or 'pool' in layer_name:
                 layer_output = current_tensor.numpy()
@@ -113,8 +103,8 @@ def predict():
             'digit': predicted_digit,
             'probabilities': probabilities,
             'visualization': viz_data,
-            'logs': logs,                   # Data log step-by-step
-            'model_summary': MODEL_SUMMARY_TEXT, # Text summary ala Colab
+            'logs': logs,                  
+            'model_summary': MODEL_SUMMARY_TEXT, 
             'status': 'success'
         })
 

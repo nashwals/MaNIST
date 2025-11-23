@@ -284,13 +284,10 @@ Model belum dimuat.</pre
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Reset result display
         document.getElementById("predictedDigit").textContent = "-";
         document.getElementById("accuracyText").textContent = "Akurasi: -%";
         document.getElementById("chartContainer").innerHTML = "";
         document.getElementById("btnVisualisasi").disabled = true;
-
-        // Reset Visualisasi & Logs
         document.getElementById("vizPlaceholder").style.display = "block";
         document.getElementById("vizContent").style.display = "none";
         document.getElementById("stepLogs").innerHTML =
@@ -320,20 +317,13 @@ Model belum dimuat.</pre
           const data = await response.json();
 
           if (data.status === "success") {
-            // 1. Tampilkan Hasil Utama
             displayPredictionResults(data.digit, data.probabilities);
-
-            // 2. Render Visualisasi Gambar (Tab 1)
             renderDynamicViz(data.visualization, data.logs);
 
-            // 3. Render Console Logs (Tab 2)
             renderLogs(data.logs);
 
-            // 4. Render Model Summary (Tab 3)
             document.getElementById("modelSummaryText").textContent =
               data.model_summary;
-
-            // Tampilkan container visualisasi
             document.getElementById("vizPlaceholder").style.display = "none";
             document.getElementById("vizContent").style.display = "block";
           } else {
@@ -348,11 +338,11 @@ Model belum dimuat.</pre
       }
 
       /**
-       * FUNGSI BARU: Render Console Logs (Notebook Style)
+       * Render Console Logs (Notebook Style)
        */
       function renderLogs(logs) {
         const container = document.getElementById("stepLogs");
-        container.innerHTML = ""; // Clear old logs
+        container.innerHTML = ""; 
 
         logs.forEach((log) => {
           if (log.type === "input") return; 

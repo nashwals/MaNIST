@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MaNIST - Klasifikasi Digit Tulisan Tangan</title>
+
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+
+    <!-- Google Fonts - Poppins -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Style CSS -->
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <!-- Header Section -->
+    <div class="header">
+      <div class="container">
+        <div class="row align-items-center">
+          <div class="col-md-3">
+            <div class="logo">MaNIST :)</div>
+          </div>
+          <div class="col-md-9">
+            <h1 class="main-title">Klasifikasi Digit Tulisan Tangan (CNN)</h1>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Section -->
+    <div class="container">
+      <div class="row">
+        <!-- Canvas Area (Left) -->
+        <div class="col-lg-4 mb-4">
+          <div class="canvas-container">
+            <div class="canvas-instruction">
+              Silahkan gambar digit dari 0 - 9. Jika sudah klik prediksi.
+              <br /><br />
+              Hasil prediksi akan muncul di kotak sebelah kiri.
+            </div>
+            <canvas id="drawingCanvas" width="280" height="280"></canvas>
+          </div>
+        </div>
+
+        <!-- Button Area (Center) -->
+        <div class="col-lg-4 mb-4">
+          <div class="button-container">
+            <button class="btn btn-custom btn-hapus" onclick="clearCanvas()">
+              Hapus
+            </button>
+            <button
+              class="btn btn-custom btn-prediksi"
+              onclick="predictDigit()"
+            >
+              Prediksi
+            </button>
+            <button
+              class="btn btn-custom btn-visualisasi"
+              id="btnVisualisasi"
+              onclick="scrollToVisualization()"
+              disabled
+            >
+              Visualisasi
+            </button>
+
+            <!-- Loading Spinner -->
+            <div
+              class="spinner-border text-primary spinner"
+              role="status"
+              id="loadingSpinner"
+            >
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Result Panel (Right) -->
+        <div class="col-lg-4 mb-4">
+          <div class="result-panel">
+            <div class="result-title">Hasil Prediksi</div>
+
+            <div class="prediction-display">
+              <div class="predicted-digit" id="predictedDigit">-</div>
+              <div class="accuracy-text" id="accuracyText">Akurasi: -%</div>
+            </div>
+
+            <!-- Probability Bar Chart -->
+            <div class="chart-container" id="chartContainer">
+              <!-- Chart items akan di-generate oleh JavaScript -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visualization Section (Placeholder) -->
+    <div class="container" id="visualizationSection">
+      <div class="visualization-section">
+        <h2 class="visualization-title">Deep Learning Process Inspector</h2>
+
+        <ul class="nav nav-tabs mb-4" id="vizTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active"
+              id="visual-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#visual-content"
+              type="button"
+              role="tab"
+            >
+              Visualisasi Layer
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="console-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#console-content"
+              type="button"
+              role="tab"
+            >
+              Console Log & Shapes
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              id="summary-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#summary-content"
+              type="button"
+              role="tab"
+            >
+              Model Summary
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="vizTabContent">
+          <div
+            class="tab-pane fade show active"
+            id="visual-content"
+            role="tabpanel"
+          >
+            <div id="vizContent" style="display: none">
+              <div class="viz-step">
+                <h5>Input Data</h5>
+                <img
+                  id="viz-input-img"
+                  class="viz-single-img"
+                  src=""
+                  alt="Input"
+                />
+              </div>
+
+              <div id="dynamic-viz-container"></div>
+            </div>
+            <div id="vizPlaceholder" class="visualization-placeholder">
+              <p>
+                Klik tombol <b>"Prediksi"</b> untuk melihat hasil scan layer.
+              </p>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="console-content" role="tabpanel">
+            <div class="console-box" id="stepLogs">
+              <span class="text-muted">// Menunggu proses prediksi...</span>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="summary-content" role="tabpanel">
+            <pre class="console-box" id="modelSummaryText">
+Model belum dimuat.</pre
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      // ===== Canvas Setup =====
+
+      const canvas = document.getElementById("drawingCanvas");
+      const ctx = canvas.getContext("2d");
+
+      let isDrawing = false;
+      let lastX = 0;
+      let lastY = 0;
+
+      // Variabel Global untuk menyimpan data visualisasi
+      let currentVizData = null;
+
+      // Setup canvas background
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // ===== Drawing Functions =====
+
+      function startDrawing(e) {
+        isDrawing = true;
+        const rect = canvas.getBoundingClientRect();
+        lastX = e.clientX - rect.left;
+        lastY = e.clientY - rect.top;
+      }
+
+      function draw(e) {
+        if (!isDrawing) return;
+        const rect = canvas.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 20;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(currentX, currentY);
+        ctx.stroke();
+
+        lastX = currentX;
+        lastY = currentY;
+      }
+
+      function stopDrawing() {
+        isDrawing = false;
+      }
+
+      // Event listeners
+      canvas.addEventListener("mousedown", startDrawing);
+      canvas.addEventListener("mousemove", draw);
+      canvas.addEventListener("mouseup", stopDrawing);
+      canvas.addEventListener("mouseout", stopDrawing);
+
+      // Touch support
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent("mousedown", {
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+        });
+        canvas.dispatchEvent(mouseEvent);
+      });
+
+      canvas.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent("mousemove", {
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+        });
+        canvas.dispatchEvent(mouseEvent);
+      });
+
+      canvas.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        const mouseEvent = new MouseEvent("mouseup", {});
+        canvas.dispatchEvent(mouseEvent);
+      });
+
+      // ===== Logic Functions =====
+
+      /**
+       * Clear canvas and reset all results (Prediction, Logs, Viz)
+       */
+      function clearCanvas() {
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Reset result display
+        document.getElementById("predictedDigit").textContent = "-";
+        document.getElementById("accuracyText").textContent = "Akurasi: -%";
+        document.getElementById("chartContainer").innerHTML = "";
+        document.getElementById("btnVisualisasi").disabled = true;
+
+        // Reset Visualisasi & Logs
+        document.getElementById("vizPlaceholder").style.display = "block";
+        document.getElementById("vizContent").style.display = "none";
+        document.getElementById("stepLogs").innerHTML =
+          '<span class="text-muted">// Menunggu proses prediksi...</span>';
+        document.getElementById("modelSummaryText").textContent =
+          "Model belum dimuat.";
+
+        currentVizData = null;
+      }
+
+      /**
+       * Send canvas image to backend for prediction
+       */
+      async function predictDigit() {
+        const imageData = canvas.toDataURL("image/png");
+        document.getElementById("loadingSpinner").style.display = "block";
+
+        try {
+          const response = await fetch("/predict", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ image: imageData }),
+          });
+
+          const data = await response.json();
+
+          if (data.status === "success") {
+            // 1. Tampilkan Hasil Utama
+            displayPredictionResults(data.digit, data.probabilities);
+
+            // 2. Render Visualisasi Gambar (Tab 1)
+            renderDynamicViz(data.visualization, data.logs);
+
+            // 3. Render Console Logs (Tab 2)
+            renderLogs(data.logs);
+
+            // 4. Render Model Summary (Tab 3)
+            document.getElementById("modelSummaryText").textContent =
+              data.model_summary;
+
+            // Tampilkan container visualisasi
+            document.getElementById("vizPlaceholder").style.display = "none";
+            document.getElementById("vizContent").style.display = "block";
+          } else {
+            alert("Error: " + data.message);
+          }
+        } catch (error) {
+          console.error("Prediction error:", error);
+          alert("Terjadi kesalahan saat melakukan prediksi.");
+        } finally {
+          document.getElementById("loadingSpinner").style.display = "none";
+        }
+      }
+
+      /**
+       * FUNGSI BARU: Render Console Logs (Notebook Style)
+       */
+      function renderLogs(logs) {
+        const container = document.getElementById("stepLogs");
+        container.innerHTML = ""; // Clear old logs
+
+        logs.forEach((log) => {
+          if (log.type === "input") return; 
+
+          const div = document.createElement("div");
+          div.className = "log-item";
+          div.innerHTML = `
+            <span class="log-label">[${log.type}] ${log.name}</span><br>
+            <span class="log-arrow">Input:</span> <span class="log-shape">${log.input_shape}</span> 
+            <span class="log-arrow">➔ Output:</span> <span class="log-shape">${log.output_shape}</span><br>
+            <small style="color:#888">Params: ${log.params}</small>
+        `;
+          container.appendChild(div);
+        });
+      }
+
+      function renderDynamicViz(vizData, logs) {
+        const inputImg = document.getElementById("viz-input-img");
+        if (inputImg) inputImg.src = vizData.input;
+
+        const container = document.getElementById("dynamic-viz-container");
+        container.innerHTML = ""; 
+
+        logs.forEach((layer) => {
+          if (layer.has_viz && vizData[layer.name]) {
+            const stepDiv = document.createElement("div");
+            stepDiv.className = "viz-step";
+
+            stepDiv.innerHTML = `
+                <h5>${layer.name} (${layer.type})</h5>
+                <p class="text-muted small">Output Shape: ${layer.output_shape}</p>
+                <div id="grid-${layer.name}" class="viz-grid"></div>
+            `;
+
+            container.appendChild(stepDiv);
+
+            const grid = stepDiv.querySelector(`#grid-${layer.name}`);
+            const images = vizData[layer.name];
+
+            images.forEach((imgSrc) => {
+              const img = document.createElement("img");
+              img.src = imgSrc;
+              img.className = "viz-filter-img";
+              grid.appendChild(img);
+            });
+          }
+        });
+      }
+
+      function displayPredictionResults(digit, probabilities) {
+        document.getElementById("predictedDigit").textContent = digit;
+        const accuracy = (probabilities[digit] * 100).toFixed(1);
+        document.getElementById(
+          "accuracyText"
+        ).textContent = `Akurasi: ${accuracy}%`;
+        generateBarChart(probabilities, digit);
+        document.getElementById("btnVisualisasi").disabled = false;
+      }
+
+      function generateBarChart(probabilities, topDigit) {
+        const chartContainer = document.getElementById("chartContainer");
+        chartContainer.innerHTML = "";
+
+        probabilities.forEach((prob, index) => {
+          const percentage = (prob * 100).toFixed(1);
+          const isTop = index === topDigit;
+
+          const chartItem = document.createElement("div");
+          chartItem.className = "chart-item";
+          chartItem.innerHTML = `
+                <span class="chart-label">${index}</span>
+                <div class="chart-bar-container">
+                    <div class="chart-bar ${isTop ? "top-prediction" : ""}" 
+                         style="width: ${percentage}%"></div>
+                </div>
+                <span class="chart-percentage">${percentage}%</span>
+            `;
+          chartContainer.appendChild(chartItem);
+        });
+      }
+
+      function scrollToVisualization() {
+        const section = document.getElementById("visualizationSection");
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      async function simulatePrediction() {
+      }
+      function generateRandomProbabilities(topDigit) {
+        return [];
+      }
+    </script>
+  </body>
+</html>

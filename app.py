@@ -28,8 +28,10 @@ def encode_image_array(img_array, resize_factor=4):
         img_array = img_array * 255 
     img_array = img_array.astype(np.uint8)
     img = Image.fromarray(img_array)
+    
     w, h = img.size
     img = img.resize((w * resize_factor, h * resize_factor), Image.NEAREST)
+    
     buffered = BytesIO()
     img.save(buffered, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buffered.getvalue()).decode('utf-8')
@@ -49,6 +51,7 @@ def predict():
         img = Image.open(BytesIO(image_bytes)).convert('L')
         img = ImageOps.invert(img)
         img = img.resize((28, 28))
+        
         img_array = np.array(img).astype('float32') / 255.0
         img_input = img_array.reshape(1, 28, 28, 1)
         
@@ -83,17 +86,35 @@ def predict():
                 "params": layer.count_params()
             }
 
-            layer_name = layer.name.lower()
-            if 'conv' in layer_name or 'pool' in layer_name:
-                layer_output = current_tensor.numpy()
+            layer_name_lower = layer.name.lower()
+            layer_output = current_tensor.numpy()
+
+            if 'conv' in layer_name_lower or 'pool' in layer_name_lower:
                 n_features = layer_output.shape[-1]
                 images_in_layer = []
                 for idx in range(min(n_features, 8)): 
                     img_feature = layer_output[0, :, :, idx]
                     images_in_layer.append(encode_image_array(img_feature))
                 
-                viz_data[layer.name] = images_in_layer
+                viz_data[layer.name] = {
+                    'type': 'image',
+                    'data': images_in_layer
+                }
                 layer_info['has_viz'] = True
+
+            elif 'flatten' in layer_name_lower or 'dense' in layer_name_lower or 'dropout' in layer_name_lower:
+                flat_array = layer_output.flatten()
+                sample_data = flat_array[:100].tolist() 
+                
+                viz_data[layer.name] = {
+                    'type': 'vector',
+                    'data': sample_data,
+                    'min': float(flat_array.min()),
+                    'max': float(flat_array.max()),
+                    'total_elements': len(flat_array)
+                }
+                layer_info['has_viz'] = True
+            
             else:
                 layer_info['has_viz'] = False
 
@@ -103,8 +124,8 @@ def predict():
             'digit': predicted_digit,
             'probabilities': probabilities,
             'visualization': viz_data,
-            'logs': logs,                  
-            'model_summary': MODEL_SUMMARY_TEXT, 
+            'logs': logs,
+            'model_summary': MODEL_SUMMARY_TEXT,
             'status': 'success'
         })
 

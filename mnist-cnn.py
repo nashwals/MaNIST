@@ -1,5 +1,6 @@
 # --- Import library ---
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix, classification_report
@@ -8,6 +9,8 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.callbacks import LearningRateScheduler
 
 
 # --- Load dataset MNIST (sudah termasuk train dan test split) ---
@@ -35,8 +38,8 @@ x_train = x_train.reshape(-1, 28, 28, 1)
 x_test = x_test.reshape(-1, 28, 28, 1)
 
 # Normalisasi pixel values ke range [0, 1]
-x_train = x_train.astype('float32') / 255.0
-x_test = x_test.astype('float32') / 255.0
+x_train = x_train / 255.0
+x_test = x_test / 255.0
 
 # One-hot encoding untuk labels
 y_train_cat = to_categorical(y_train, 10)
@@ -45,6 +48,19 @@ y_test_cat = to_categorical(y_test, 10)
 print(f"\nSetelah pre-processing:")
 print(f"x_train shape: {x_train.shape}")
 print(f"y_train_cat shape: {y_train_cat.shape}")
+
+# --- Data Augmentation ---
+datagen = ImageDataGenerator(
+    rotation_range=10,        # Rotasi random hingga 10 derajat
+    width_shift_range=0.1,    # Shift horizontal hingga 10%
+    height_shift_range=0.1,   # Shift vertikal hingga 10%
+    zoom_range=0.1,           # Zoom in/out hingga 10%
+    shear_range=0.1,          # Shear transformation
+    fill_mode='nearest'       # Cara mengisi pixel yang kosong
+) 
+
+# Fit generator pada training data
+datagen.fit(x_train)
 
 
 # --- Build CNN Model ---
@@ -89,6 +105,9 @@ model.summary()
 
 
 # --- Training ---
+# Decrease Learning Rate Each Epoch
+annealer = LearningRateScheduler(lambda x: 1e-3 * 0.95 ** x)
+
 # Callback untuk early stopping
 early_stop = keras.callbacks.EarlyStopping(
     monitor='val_loss',
@@ -99,10 +118,10 @@ early_stop = keras.callbacks.EarlyStopping(
 # Training
 history = model.fit(
     x_train, y_train_cat,
-    batch_size=128,
-    epochs=20,
+    batch_size=64,
+    epochs=45,
     validation_split=0.1,
-    callbacks=[early_stop],
+    callbacks=[early_stop, annealer],
     verbose=1
 )
 
@@ -135,7 +154,6 @@ axes[1].legend()
 axes[1].grid(True)
 
 plt.tight_layout()
-
 
 # --- Prediksi dan Visualisasi ---
 # Prediksi

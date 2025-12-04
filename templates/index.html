@@ -279,12 +279,28 @@
         const container = document.getElementById("cnnSummaryAnimation");
         container.innerHTML = "";
 
+        // Mengelompokkan layer berdasarkan arsitektur baru 
+        // Model Baru: 
+        // 1. 3x Layer Conv2D (Filter 32)
+        // 2. 2x Layer Conv2D (Filter 64)
+        // 3. 1x Layer Conv2D (Filter 128)
+        
         const nodes = [
           { type: "img", src: inputSrc, label: "Input", sub: "28x28x1" },
-          { type: "box", label: "Conv Block 1", sub: "32 Filters" },
-          { type: "box", label: "Conv Block 2", sub: "64 Filters" },
-          { type: "box", label: "Conv Block 3", sub: "128 Filters" },
+          
+          // Group 1: Tumpukan 3 layer filter 32
+          { type: "box", label: "Stack-32", sub: "3x Conv Layers" },
+          
+          // Group 2: Tumpukan 2 layer filter 64
+          { type: "box", label: "Stack-64", sub: "2x Conv Layers" },
+          
+          // Group 3: Layer filter 128
+          { type: "box", label: "Conv-128", sub: "High Level Features" },
+          
+          // Dense Layer
           { type: "box", label: "Dense", sub: "128 Neurons", color: "gray" },
+          
+          // Output
           {
             type: "digit",
             val: outputDigit,
@@ -305,9 +321,11 @@
           } else {
             const bgClass =
               node.color === "gray" ? "bg-secondary" : "bg-primary";
-            innerContent = `<div class="summary-box ${bgClass}">${
-              node.label.split(" ")[0]
-            }</div>`;
+            
+            // Mengambil kata pertama untuk teks di dalam kotak (Misal: "Stack-32" -> "Stack")
+            const boxText = node.label.split("-")[0];
+            
+            innerContent = `<div class="summary-box ${bgClass}">${boxText}</div>`;
           }
 
           nodeDiv.innerHTML = `

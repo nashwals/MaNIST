@@ -50,22 +50,31 @@ print(f"y_train_cat shape: {y_train_cat.shape}")
 # --- Build CNN Model ---
 model = keras.Sequential([
     # Convolutional Layer 1
-    layers.Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
-    layers.MaxPooling2D(pool_size=(2, 2)),
-    
+    layers.Conv2D(32, kernel_size=3, activation='relu', padding='same', input_shape=(28, 28, 1)),
+
     # Convolutional Layer 2
-    layers.Conv2D(64, kernel_size=(3, 3), activation='relu'),
-    layers.MaxPooling2D(pool_size=(2, 2)),
+    layers.Conv2D(32, kernel_size=3, activation='relu', padding='same'),
     
     # Convolutional Layer 3
-    layers.Conv2D(128, kernel_size=(3, 3), activation='relu'),
-    
-    # Flatten dan Dense Layers
-    layers.Flatten(),
-    layers.Dropout(0.5),
-    layers.Dense(128, activation='relu'),
+    layers.Conv2D(32, kernel_size=5, strides=2, padding='same', activation='relu'),
     layers.Dropout(0.3),
-    layers.Dense(10, activation='softmax')  # 10 classes (0-9)
+    
+    # Convolutional Layer 4
+    layers.Conv2D(64, kernel_size=3, activation='relu', padding='same'),
+
+    # Convolutional Layer 5
+    layers.Conv2D(64, kernel_size=3, activation='relu', padding='same'),
+    layers.MaxPooling2D(pool_size=2),  # Hanya 1 pooling lagi
+    layers.Dropout(0.4),
+    
+    # Layer 6
+    layers.Conv2D(128, kernel_size=3, activation='relu', padding='same'),
+    
+    # Fully-Connected Layer
+    layers.Flatten(),
+    layers.Dense(128, activation='relu'),
+    layers.Dropout(0.5),
+    layers.Dense(10, activation='softmax')
 ])
 
 # Compile model
